@@ -1,104 +1,153 @@
-# Arquitectura del sistema - ReportaP'
+# Arquitectura del sistema - ReportaPe
 
 ## Descripción general
 
-ReportaP' es una plataforma cívica que permite a ciudadanos registrar denuncias o propuestas geolocalizadas, adjuntar evidencia fotográfica y convertirlas en expedientes formales mediante el cruce de datos públicos del Estado peruano y generación asistida por IA.
+ReportaPe es una plataforma cívica móvil y web que permite a ciudadanos peruanos registrar denuncias o propuestas geolocalizadas, adjuntar evidencia fotográfica y convertirlas en expedientes formales mediante el cruce de datos públicos del Estado peruano y generación asistida por IA.
 
-El sistema se organiza en módulos separados: frontend, backend/API, base de datos geoespacial, servicios de IA, almacenamiento de imágenes, procesamiento asíncrono y fuentes externas del Estado.
+El sistema se organiza en módulos separados: **app móvil** (React Native/Expo), **frontend web** (Next.js), **backend/API** (FastAPI), **base de datos geoespacial** (PostgreSQL + PostGIS), **servicios de IA** (Claude API), **almacenamiento** (Cloudinary), **procesamiento asíncrono** (Celery + Redis) y **fuentes externas del Estado peruano**.
 
 ## Diagrama general de arquitectura
 
 ```mermaid
 flowchart TD
-    Usuario[Ciudadano / Vecino] --> Frontend[Frontend Web/Móvil<br/>Next.js + Tailwind + Leaflet]
+    Ciudadano[Ciudadano / Vecino]
 
-    Frontend --> API[Backend API<br/>FastAPI]
+    Ciudadano --> Mobile[App Móvil<br/>React Native / Expo]
+    Ciudadano --> Web[Frontend Web<br/>Next.js 14 + Tailwind]
 
-    API --> Auth[Gestión de usuarios<br/>y validación de reportes]
+    Mobile --> API[Backend API<br/>FastAPI + Python]
+    Web --> API
+
+    subgraph Seguridad
+        API --> RateLimit[Rate Limiter<br/>10 req/min POST]
+        API --> Validation[Pydantic Validation<br/>+ lat/lng bounds check]
+    end
+
     API --> Reportes[Módulo de reportes<br/>denuncias y propuestas]
-    API --> Geo[Módulo geoespacial<br/>ubicación y zonas]
+    API --> Geo[Módulo geoespacial<br/>PostGIS queries]
     API --> Expedientes[Módulo de expedientes<br/>generación formal]
-    API --> Comunidad[Módulo comunitario<br/>firmas y apoyos]
+    API --> Comunidad[Módulo comunitario<br/>apoyos colectivos]
 
-    Reportes --> DB[(PostgreSQL + PostGIS)]
+    Reportes --> DB[(PostgreSQL + PostGIS<br/>GIST index coords)]
     Geo --> DB
     Expedientes --> DB
     Comunidad --> DB
 
-    Reportes --> Fotos[Cloudinary<br/>almacenamiento de fotos]
+    Reportes --> Fotos[Cloudinary<br/>fotos + PDFs]
 
-    API --> Queue[Celery + Redis<br/>procesamiento asíncrono]
+    API --> Cache[(Redis<br/>TTL 24h)]
+    Cache --> Queue[Celery Workers<br/>tareas asíncronas]
 
-    Queue --> Estado[Fuentes de datos del Estado]
-    Queue --> IA[Claude API<br/>generación y análisis]
+    Queue --> Estado[Fuentes del Estado]
+    Queue --> IA[Claude API<br/>claude-sonnet-4-6]
 
-    Estado --> INFOBRAS[INFOBRAS]
-    Estado --> MEF[MEF / SIAF / INVIERTE.pe]
-    Estado --> OEFA[OEFA]
-    Estado --> SEACE[OECE / SEACE]
-    Estado --> GeoPeru[GeoPerú / IDEPerú]
-    Estado --> Otros[SIGERSOL / SUNASS / OSINERGMIN]
+    Estado --> INFOBRAS[INFOBRAS<br/>Contraloría]
+    Estado --> MEF[MEF / SIAF<br/>Consulta Amigable]
+    Estado --> INVIERTE[INVIERTE.pe<br/>proyectos inversión]
+    Estado --> OEFA[OEFA<br/>API pública]
+    Estado --> SEACE[OECE / SEACE<br/>contratos CSV]
+    Estado --> GeoPeru[GeoPerú / IDEPerú<br/>WMS/WFS]
 
     IA --> Expedientes
-    Expedientes --> PDF[PDF / Expediente formal]
-    API --> PDF
-    Frontend --> Mapa[Mapa público de reportes]
+    Expedientes --> PDF[PDF Expediente formal<br/>Cloudinary]
 ```
 
 ## Arquitectura por capas
 
 ```mermaid
 flowchart TB
-    subgraph Cliente
-        Web[Next.js Web App]
-        Map[Mapa interactivo Leaflet]
+    subgraph Clientes
+        Mobile[App Móvil<br/>React Native/Expo<br/>Expo Router v3]
+        Web[Web App<br/>Next.js 14<br/>App Router]
     end
 
     subgraph Backend
-        API[FastAPI REST API]
-        Services[Servicios de dominio]
-        Workers[Celery Workers]
+        direction TB
+        Routers[Routers FastAPI<br/>HTTP + validación]
+        Services[Services<br/>lógica de negocio]
+        Repos[Repositories<br/>acceso a datos]
+        Scrapers[Scrapers<br/>fuentes del Estado]
+        Workers[Celery Workers<br/>tareas asíncronas]
     end
 
-    subgraph Datos
+    subgraph Infraestructura
         DB[(PostgreSQL + PostGIS)]
-        Redis[(Redis)]
+        Redis[(Redis cache)]
         Storage[Cloudinary]
     end
 
-    subgraph IA
-        Claude[Claude API]
-        Vision[Claude Vision]
+    subgraph IA_Anthropic
+        Claude[claude-sonnet-4-6<br/>expedientes]
+        Vision[Claude Vision<br/>análisis de foto]
     end
 
     subgraph Estado_Peruano
         INFOBRAS[INFOBRAS]
-        MEF[MEF / Consulta Amigable]
-        Invierte[INVIERTE.pe]
-        OEFA[OEFA]
-        SEACE[SEACE / OECE]
-        GeoPeru[GeoPerú / IDEPerú]
+        MEF[MEF/SIAF]
+        OEFA[OEFA API]
+        SEACE[SEACE CSV]
+        GeoPeru[GeoPerú WFS]
     end
 
-    Web --> API
-    Map --> API
-
-    API --> Services
-    Services --> DB
+    Mobile --> Routers
+    Web --> Routers
+    Routers --> Services
+    Services --> Repos
+    Services --> Workers
+    Repos --> DB
     Services --> Storage
     Services --> Redis
 
-    Redis --> Workers
+    Workers --> Scrapers
     Workers --> Claude
     Workers --> Vision
-    Workers --> INFOBRAS
-    Workers --> MEF
-    Workers --> Invierte
-    Workers --> OEFA
-    Workers --> SEACE
-    Workers --> GeoPeru
-
+    Scrapers --> INFOBRAS
+    Scrapers --> MEF
+    Scrapers --> OEFA
+    Scrapers --> SEACE
+    Scrapers --> GeoPeru
     Workers --> DB
+```
+
+## Arquitectura móvil (React Native / Expo)
+
+```mermaid
+flowchart TD
+    subgraph Pantallas
+        MapTab[Mapa<br/>react-native-maps]
+        ListTab[Reportes<br/>FlatList filterable]
+        ProfileTab[Perfil<br/>mis reportes + stats]
+        NewReport[Nuevo Reporte<br/>form 5 pasos]
+        NewProposal[Nueva Propuesta<br/>form 4 pasos]
+        Detail[Detalle<br/>expediente + apoyo]
+    end
+
+    subgraph Estado_Global
+        Zustand[Zustand store]
+        ReactQuery[React Query<br/>server cache 2min]
+    end
+
+    subgraph Permisos_Nativos
+        Camera[expo-camera<br/>foto evidencia]
+        Location[expo-location<br/>GPS automático]
+        ImagePicker[expo-image-picker<br/>galería]
+    end
+
+    subgraph API_Client
+        Axios[Axios + interceptors<br/>BASE_URL en Constants]
+    end
+
+    MapTab --> ReactQuery
+    ListTab --> ReactQuery
+    NewReport --> Camera
+    NewReport --> Location
+    NewReport --> ImagePicker
+    NewReport --> Axios
+    NewProposal --> Camera
+    NewProposal --> Location
+    Detail --> ReactQuery
+    ReactQuery --> Axios
+    Axios --> BackendAPI[Backend FastAPI]
 ```
 
 ## Comunicación entre módulos
@@ -184,12 +233,125 @@ sequenceDiagram
     API->>DB: Actualiza contador de apoyo
 ```
 
-## Decisiones iniciales de arquitectura
+## Modelo de datos (ER simplificado)
 
-- Se usa **Next.js** para construir una interfaz rápida, compatible con despliegue en Vercel y adecuada para mapas interactivos.
-- Se usa **FastAPI** como backend por su velocidad de desarrollo, documentación automática y buen soporte para servicios REST.
-- Se usa **PostgreSQL + PostGIS** porque el sistema depende de coordenadas, búsquedas geográficas y relación entre reportes y zonas.
-- Se usa **Celery + Redis** para ejecutar consultas externas y procesamiento con IA sin bloquear la experiencia del usuario.
-- Se usa **Claude API** para generar expedientes formales y analizar la evidencia enviada por el ciudadano.
-- Se usa **Cloudinary** para almacenar imágenes ciudadanas sin sobrecargar el backend.
-- La arquitectura separa reportes, propuestas, expedientes, comunidad y datos externos para facilitar la evolución del sistema hacia la entrega final.
+```mermaid
+erDiagram
+    REPORT {
+        uuid id PK
+        varchar type "denuncia | propuesta"
+        varchar category "obra | basura | agua | ..."
+        varchar status "pending | processing | active | resolved | closed"
+        text title
+        text description
+        float latitude
+        float longitude
+        varchar address
+        varchar photo_url
+        varchar expediente_url
+        varchar responsible_entity
+        varchar responsible_channel
+        int support_count
+        bool collective_request_sent
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    STATE_DATA_CACHE {
+        uuid id PK
+        uuid report_id FK
+        jsonb infobras_result
+        jsonb mef_result
+        jsonb oefa_result
+        jsonb geo_result
+        timestamp cached_at
+        timestamp expires_at
+    }
+
+    SUPPORT {
+        uuid id PK
+        uuid report_id FK
+        varchar citizen_name
+        varchar citizen_ip_hash
+        timestamp created_at
+    }
+
+    REPORT ||--o{ SUPPORT : "tiene"
+    REPORT ||--o| STATE_DATA_CACHE : "tiene"
+```
+
+## Capa de caché y resiliencia
+
+```mermaid
+flowchart LR
+    Request[Solicitud<br/>GET /state-data/query] --> CheckCache{¿En Redis?}
+    CheckCache -- HIT --> ReturnCache[Retornar datos cacheados<br/>TTL 24h]
+    CheckCache -- MISS --> Workers[Celery Worker]
+
+    Workers --> Try1[Intento 1<br/>fuente del Estado]
+    Try1 -- Falla --> Delay1[1s delay]
+    Delay1 --> Try2[Intento 2]
+    Try2 -- Falla --> Delay2[3s delay]
+    Delay2 --> Try3[Intento 3]
+    Try3 -- Falla --> Graceful[Degradación elegante<br/>reporte se crea igual]
+    Try1 -- OK --> SaveCache[Guardar en Redis<br/>TTL 24h]
+    Try2 -- OK --> SaveCache
+    Try3 -- OK --> SaveCache
+    SaveCache --> ReturnData[Retornar datos]
+```
+
+## Diagrama de despliegue
+
+```mermaid
+flowchart LR
+    subgraph Dispositivo_Usuario
+        ExpoApp[Expo APK<br/>Android / iOS]
+        Browser[Navegador<br/>Chrome / Safari]
+    end
+
+    subgraph AWS_CloudFront["AWS — CloudFront + S3"]
+        NextJS[Next.js 14<br/>App Router<br/>Static Export]
+    end
+
+    subgraph AWS_EC2["AWS — EC2 t3.small (Docker)"]
+        FastAPI[FastAPI<br/>Python 3.11<br/>uvicorn]
+        Celery[Celery Worker<br/>procesamiento async]
+        RedisDB[(Redis<br/>cache + broker)]
+    end
+
+    subgraph AWS_RDS["AWS — RDS PostgreSQL"]
+        Postgres[(PostgreSQL 16<br/>+ PostGIS)]
+    end
+
+    subgraph AWS_S3["AWS — S3"]
+        Media[Fotos JPG<br/>Expedientes TXT]
+    end
+
+    ExpoApp --> FastAPI
+    Browser --> NextJS
+    NextJS --> FastAPI
+    FastAPI --> Postgres
+    FastAPI --> RedisDB
+    FastAPI --> Media
+    Celery --> RedisDB
+    Celery --> Postgres
+    Celery --> Media
+    Celery --> OpenAI[OpenAI API<br/>gpt-4o-mini]
+    Celery --> EstadoPeruano[Fuentes del Estado<br/>INFOBRAS / MEF / OEFA]
+```
+
+> **Nota de despliegue:** Se usa AWS por créditos de equipo disponibles. El backend corre en un EC2 con `docker-compose` (FastAPI + Celery + Redis en contenedores). La BD corre en RDS para durabilidad. Las fotos y expedientes se guardan en S3. El frontend se exporta como sitio estático a S3 y se sirve via CloudFront.
+
+## Decisiones de arquitectura
+
+| Decisión | Opción elegida | Alternativa descartada | Razón |
+|----------|---------------|----------------------|-------|
+| App móvil | React Native / Expo | Flutter | Reutiliza conocimiento JS del equipo, Expo simplifica permisos y builds |
+| Frontend web | Next.js 14 App Router | Vite + React SPA | SSR para SEO; export estático compatible con S3 + CloudFront (AWS) |
+| Backend | FastAPI (Python) | Node.js Express | Mejor ecosistema para scraping y data science; documentación automática |
+| Base de datos | PostgreSQL + PostGIS | MongoDB | Consultas geoespaciales nativas (ST_DWithin); ACID para datos cívicos |
+| Cache + broker | Redis | RabbitMQ + Memcached | Un solo servicio para caché Y broker de Celery |
+| Workers | Celery | FastAPI Background Tasks | Reintentos, monitoreo y escalado independiente del API |
+| IA | OpenAI gpt-4o-mini | Claude Sonnet | Créditos disponibles del equipo; costo ~$0.001/expediente |
+| Storage | AWS S3 | Cloudinary | Integrado con el resto de infra AWS; créditos disponibles |
+| Routing móvil | Expo Router v3 | React Navigation | File-based routing = más claro para el equipo; tipado automático |
