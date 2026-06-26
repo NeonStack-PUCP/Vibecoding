@@ -1,6 +1,6 @@
-# ReportaP'
+# ReportaPe
 
-Plataforma cívica que transforma denuncias y propuestas ciudadanas en evidencia estructurada usando datos reales del Estado peruano. El ciudadano reporta un problema con foto y ubicación; la app cruza automáticamente con INFOBRAS, MEF, OEFA y GeoPerú, genera un expediente formal listo para presentar, y lo publica en un mapa donde los vecinos pueden unirse y escalar la denuncia colectivamente.
+Plataforma cívica móvil y web que transforma denuncias y propuestas ciudadanas en evidencia estructurada usando datos reales del Estado peruano. El ciudadano reporta un problema con foto y ubicación; la app cruza automáticamente con INFOBRAS, MEF, OEFA y GeoPerú, genera un expediente formal listo para presentar, y lo publica en un mapa donde los vecinos pueden unirse y escalar la denuncia colectivamente.
 
 ---
 
@@ -43,9 +43,9 @@ Miles de ciudadanos con problemas reales, datos públicos que respaldarían sus 
 
 ## Solución que proponemos
 
-### VecinoActivo: dos modos, una plataforma
+### ReportaPe: dos modos, una plataforma
 
-**VecinoActivo** es una plataforma web/móvil con dos modos de participación ciudadana:
+**ReportaPe** es una plataforma web/móvil con dos modos de participación ciudadana:
 
 **MODO DENUNCIA:** Transforma un reporte ciudadano en un expediente con evidencia estructurada, cruzando con datos reales del Estado para identificar al responsable y generar el documento formal listo para presentar.
 
@@ -219,7 +219,8 @@ No hay proyecto registrado. La app crea la propuesta, la publica en el mapa, y c
 
 | Capa | Tecnología |
 |------|------------|
-| Frontend | Next.js 14, Tailwind CSS, Leaflet.js |
+| Frontend web | Next.js 14, Tailwind CSS, Leaflet.js |
+| Frontend móvil | React Native (Expo) |
 | Backend | FastAPI (Python), PostgreSQL + PostGIS |
 | Tareas asíncronas | Celery + Redis |
 | Datos del Estado | requests + BeautifulSoup (scraping), OEFA API REST, GeoPerú WMS/WFS |
