@@ -1,0 +1,60 @@
+{
+  "expo": {
+    "name": "ReportaPe",
+    "slug": "reportape",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#DC2626"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "pe.reportape.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "ReportaPe necesita acceso a la cámara para fotografiar el problema que deseas reportar.",
+        "NSLocationWhenInUseUsageDescription": "ReportaPe necesita tu ubicación para identificar la zona del reporte y cruzarla con datos del Estado.",
+        "NSPhotoLibraryUsageDescription": "ReportaPe necesita acceso a tu galería para adjuntar fotos a tu reporte.",
+        "NSMicrophoneUsageDescription": "ReportaPe usa el micrófono para transcribir tu descripción del problema por voz."
+      }
+    },
+    "android": {
+      "package": "pe.reportape.app",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#DC2626"
+      },
+      "permissions": [
+        "CAMERA",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "RECORD_AUDIO"
+      ]
+    },
+    "plugins": [
+      "expo-router",
+      "expo-camera",
+      "expo-av",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "ReportaPe necesita tu ubicación para identificar la zona del reporte."
+        }
+      ]
+    ],
+    "scheme": "reportape",
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "apiUrl": "http://54.90.140.42:8000"
+    }
+  }
+}

@@ -1,8 +1,39 @@
-node_modules/
+# Secrets — never commit these
 .env
+.env.local
+.env.*.local
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+venv/
+.venv/
+.pytest_cache/
+*.db
+
+# Node / Expo
+node_modules/
 dist/
 build/
+.next/
+.expo/
+
+# Native builds
+android/
+ios/
+
+# Uploaded media (stored in S3, not git)
+backend/static/photos/
+backend/static/expedientes/
+
+# Editors
 .DS_Store
-.vscode/
+.vscode/settings.json
 .idea/
-__pycache__/ 
+*.swp
+
+# Temp files
+*.pem
+*.key
